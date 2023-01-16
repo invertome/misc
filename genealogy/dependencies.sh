@@ -1,9 +1,10 @@
-# create new environment
-conda create --name plotged
+#!/bin/bash
+dependencies=("ged4py" "matplotlib")
+environment_name="plotged"
 
-# activate the environment
-conda activate plotged
-
-# install gedcom and matplotlib
-conda install -c conda-forge gedcom matplotlib
-
+conda create -y -n $environment_name
+conda activate $environment_name
+for package in "${dependencies[@]}"
+do
+    conda install -y $package -n $environment_name
+done
