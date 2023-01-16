@@ -1,5 +1,5 @@
 import argparse
-import gedcom
+import ged4py
 import matplotlib.pyplot as plt
 import os
 
@@ -12,30 +12,32 @@ parser.add_argument("--clean", help="Only display ancestors' names", default=Fal
 parser.add_argument("--out", help="Output folder for the plots and text files")
 args = parser.parse_args()
 
-# Read in GEDCOM file and create family tree
-ged = gedcom.parse(args.ged)
-tree = gedcom.FamilyTree(ged)
-ind = tree.individuals[args.id]
-ancestors = ind.get_ancestors(gen=args.gen)
+with ged4py.parser.Parser(args.ged) as parser:
+    tree = ged4py.model.Gedcom(parser)
 
 # Create plot
 fig, ax = plt.subplots()
-ax.set_title("Family Tree of {}".format(ind.name))
+ax.set_title("Family Tree of {}".format(args.id))
+
+# Get ancestors for the individual
+ind = tree.get_individual(args.id)
+ancestors = ind.get_ancestors(gen=args.gen)
+
 for ancestor in ancestors:
     if args.clean:
         ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
     else:
-        ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + str(ancestor.birth))
+        ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value())
 
 # Handle repeated ancestors due to endogamy
 repeated_ancestors = set()
 for ancestor in ancestors:
-    if ancestor.id in repeated_ancestors:
+    if ancestor.get_id().get_value() in repeated_ancestors:
         # Link ancestor to itself with a faint line
-        ax.annotate("", xy=(ancestor.x_coord, ancestor.y_coord), xytext=(repeated_ancestors[ancestor.id][0], repeated_ancestors[ancestor.id][1]),
+        ax.annotate("", xy=(ancestor.x_coord, ancestor.y_coord), xytext=(repeated_ancestors[ancestor.get_id().get_value()][0], repeated_ancestors[ancestor.get_id().get_value()][1]),
                     arrowprops=dict(facecolor='gray', alpha=0.3))
     else:
-        repeated_ancestors[ancestor.id] = (ancestor.x_coord, ancestor.y_coord)
+        repeated_ancestors.add(ancestor.get_id().get_value())
 
 # Output the plot to a folder
 if args.out:
@@ -48,23 +50,13 @@ else:
 # create a text file based family tree
 with open(args.out + "/family_tree.txt", "w") as f:
     for ancestor in ancestors:
-        f.write(ancestor.name + ": " + str(ancestor.birth) + "\n")
-        
+        f.write(ancestor.get_name().get_value() + ": " + ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + "\n")
+
 # create more detailed version of the text file
 with open(args.out + "/family_tree_detailed.txt", "w") as f:
     for ancestor in ancestors:
-        f.write(ancestor.name + '\n')
-        f.write('Birth: '+ ancestor.birth_date + ' ' + ancestor.birth_place + '\n')
-        f.write('Marriage: '+ ancestor.marriage_date + ' ' + ancestor.marriage_place + '\n')
-        f.write('Death: '+ ancestor.death_date + ' ' + ancestor.death_place + '\n\n')
+        f.write(ancestor.get_name().get_value() + '\n')
+        f.write('Birth: '+ ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + '\n')
+        f.write('Marriage: '+ ancestor.get_marriage_date().get_value() + ' ' + ancestor.get_marriage_place().get_value() + '\n')
+        f.write('Death: '+ ancestor.get_death_date().get_value() + ' ' + ancestor.get_death_place().get_value() + '\n\n')
 
-# create different versions of the family tree plot
-for i in range(1, args.gen+1):
-    fig, ax = plt.subplots()
-    ax.set_title("Family Tree of {} - Generation {}".format(ind.name, i))
-    for ancestor in ancestors:
-        if args.clean:
-            ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
-        else:
-            ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + str(ancestor.birth))
-    plt.savefig(args.out + "/family_tree_gen_{}.pdf".format(i))
