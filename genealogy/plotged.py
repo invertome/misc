@@ -13,30 +13,30 @@ parser.add_argument("--out", help="Output folder for the plots and text files")
 parser.add_argument("--format", help="Output format for the plots and text files (pdf, text, both)", default="both", choices=["pdf", "text", "both"])
 args = parser.parse_args()
 
+# Load GEDCOM file
 try:
-    print(f"Trying to parse GEDCOM file at: {args.ged}")
-    with ged4py.parser.Parser(args.ged) as parser:
-        tree = ged4py.model.Gedcom(parser)
-    print("Successfully parsed GEDCOM file.")
+    with ged4py.GedcomFile.from_file(args.ged) as gedcom_file:
+        tree = ged4py.Model.from_gedcom(gedcom_file)
 except Exception as e:
-    print("An error occurred while trying to parse the GEDCOM file:", e)
-    exit()
+    print(f"An error occurred while trying to parse the GEDCOM file: {e}")
+    sys.exit(1)
+    
+# Get the individual and their ancestors
+ind = tree.get_individual_by_pointer(args.id)
+if not ind:
+    print(f"Could not find individual with id {args.id} in GEDCOM file.")
+    sys.exit(1)
+ancestors = ind.get_ancestors(gen=args.gen)
+ancestors = ancestors[:100] # limiting the number of generations to 100
 
-try:
-    # Create plot
-    fig, ax = plt.subplots()
-    ax.set_title("Family Tree of {}".format(args.id))
+# Create plot
+fig, ax = plt.subplots()
+ax.set_title("Family Tree of {}".format(ind.name))
 
-    # Get ancestors for the individual
-    ind = tree.get_individual(args.id)
-    ancestors = ind.get_ancestors(gen=args.gen)
-    ancestors = ancestors[:100] # limiting the number of generations to 100
-    print(f"Successfully got ancestors for individual with ID: {args.id}.")
-
-    for ancestor in ancestors:
-        if args.clean:
-            ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
-        else:
+for ancestor in ancestors:
+    if args.clean:
+        ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
+    else:
             # Get birth date, birth place, marriage date, marriage place, death date, death place
             birth_date = ancestor.get_birth_date().get_value() if ancestor.get_birth_date() else 'N/A'
             birth_place = ancestor.get_birth_place().get_value() if ancestor.get_birth_place() else 'N/A'
