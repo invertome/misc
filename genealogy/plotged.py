@@ -14,9 +14,15 @@ parser.add_argument("--format", help="Output format for the plots and text files
 args = parser.parse_args()
 
 try:
+    print(f"Trying to parse GEDCOM file at: {args.ged}")
     with ged4py.parser.Parser(args.ged) as parser:
         tree = ged4py.model.Gedcom(parser)
+    print("Successfully parsed GEDCOM file.")
+except Exception as e:
+    print("An error occurred while trying to parse the GEDCOM file:", e)
+    exit()
 
+try:
     # Create plot
     fig, ax = plt.subplots()
     ax.set_title("Family Tree of {}".format(args.id))
@@ -25,6 +31,7 @@ try:
     ind = tree.get_individual(args.id)
     ancestors = ind.get_ancestors(gen=args.gen)
     ancestors = ancestors[:100] # limiting the number of generations to 100
+    print(f"Successfully got ancestors for individual with ID: {args.id}.")
 
     for ancestor in ancestors:
         if args.clean:
@@ -39,7 +46,7 @@ try:
             death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
             ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place)
 
-        # Handle repeated ancestors due to endogamy
+    # Handle repeated ancestors due to endogamy
     repeated_ancestors = set()
     for ancestor in ancestors:
         if ancestor.get_id().get_value() in repeated_ancestors:
@@ -55,24 +62,20 @@ try:
             os.mkdir(args.out)
         if args.format in ("pdf", "both"):
             plt.savefig(args.out + "/family_tree.pdf")
+            print(f"Saved family tree plot to {args.out}/family_tree.pdf")
+        if args.format in ("text", "both"):
+            with open(args.out + "/family_tree.txt", "w") as f:
+                for ancestor in ancestors:
+                    f.write(ancestor.get_name().get_value() + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place + "\n")
+                print(f"Saved family tree text file to {args.out}/family_tree.txt")
     else:
         if args.format in ("pdf", "both"):
             plt.show()
-
-    # create a text file based family tree
-    if args.format in ("text", "both"):
-        with open(args.out + "/family_tree.txt", "w") as f:
-            for ancestor in ancestors:
-                f.write(ancestor.get_name().get_value() + ": " + ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + "\n")
-
-        # create more detailed version of the text file
-    if args.format in ("text", "both"):
-        with open(args.out + "/family_tree_detailed.txt", "w") as f:
-            for ancestor in ancestors:
-                f.write(ancestor.get_name().get_value() + '\n')
-                f.write('Birth: '+ ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + '\n')
-                f.write('Marriage: '+ ancestor.get_marriage_date().get_value() + ' ' + ancestor.get_marriage_place().get_value() + '\n')
-                f.write('Death: '+ ancestor.get_death_date().get_value() + ' ' + ancestor.get_death_place().get_value() + '\n\n')
-except:
-    print("Please provide the required flags: --ged, --id")
-    print("\nExample command: python plotged.py --ged my_gedcom_file.ged --id I0001 --gen 5 --clean --out ./output --format pdf")
+            print("Displaying family tree plot.")
+        if args.format in ("text", "both"):
+            with open("family_tree.txt", "w") as f:
+                for ancestor in ancestors:
+                    f.write(ancestor.get_name().get_value() + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place + "\n")
+                print("Saved family tree text file to family_tree.txt")
+except Exception as e:
+    print("An error occurred: ", e)
