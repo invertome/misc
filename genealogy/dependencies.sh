@@ -1,5 +1,5 @@
 #!/bin/bash
-dependencies=("ged4py" "matplotlib")
+dependencies=("ged4py" "matplotlib" "networkx" "gedcom")
 environment_name="plotged"
 
 mamba create -y -n $environment_name
