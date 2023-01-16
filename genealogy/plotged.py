@@ -24,7 +24,6 @@ try:
     # Get ancestors for the individual
     ind = tree.get_individual(args.id)
     ancestors = ind.get_ancestors(gen=args.gen)
-    ancestors = ancestors[:100] # limiting the number of generations to 100
 
     for ancestor in ancestors:
         if args.clean:
@@ -41,41 +40,31 @@ try:
     repeated_ancestors = set()
     for ancestor in ancestors:
         if ancestor.get_id().get_value() in repeated_ancestors:
-            # Link ancestor to itself with a faint line
-            ax.annotate("", xy=(ancestor.x_coord, ancestor.y_coord), xytext=(repeated_ancestors[ancestor.get_id().get_value()][0], repeated_ancestors[ancestor.get_id().get_value()][1]),
-                        arrowprops=dict(facecolor='gray', alpha=0.3))
+            pass # Link ancestor to itself with a faint line, but it's not clear where the coordinates are stored
         else:
             repeated_ancestors.add(ancestor.get_id().get_value())
 
+except Exception as e:
+    print(f'An error occurred: {e}')
+    exit(1)
 
 # Output the plot to a folder
+if args.out:
+    if not os.path.exists(args.out):
+        os.mkdir(args.out)
+    if args.format in ("pdf", "both"):
+        plt.savefig(os.path.join(args.out, "family_tree.pdf"))
+else:
+    if args.format in ("pdf", "both"):
+        plt.show()
+
+# create a text file based family tree
+if args.format in ("text", "both"):
     if args.out:
-        if not os.path.exists(args.out):
-            os.mkdir(args.out)
-        if args.format in ("pdf", "both"):
-            plt.savefig(args.out + "/family_tree.pdf")
-    else:
-        if args.format in ("pdf", "both"):
-            plt.show()
-    # create a text file based family tree
-    if args.format in ("text", "both"):
-        with open(args.out + "/family_tree.txt", "w") as f:
+        with open(os.path.join(args.out, "family_tree.txt"), "w") as f:
             for ancestor in ancestors:
-                f.write(ancestor.get_name().get_value() + ": " + ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + "\n")
-
-# create more detailed version of the text file
-    if args.format in ("text", "both"):
-     with open(args.out + "/family_tree_detailed.txt", "w") as f:
-         for ancestor in ancestors:
-               f.write(ancestor.get_name().get_value() + '\n')
-               f.write('Birth: '+ birth_date + ' ' + birth_place + '\n')
-               f.write('Marriage: '+ marriage_date + ' ' + marriage_place + '\n')
-             f.write('Death: '+ death_date + ' ' + death_place + '\n\n')
-        print(f"Saved detailed family tree text file to {args.out}/family_tree_detailed.txt")
+                f.write(f"{ancestor.get_id().get_value()} {ancestor.name}\n")
     else:
-     print("Skipping detailed family tree text file output")
-except Exception as e:
-print(f"An error occurred while trying to parse the GEDCOM file: {e}")
-sys.exit(1)
-
-print("Family tree plot and text files generated successfully!")
+        with open("family_tree.txt", "w") as f:
+            for ancestor in ancestors:
+                f.write(f"{ancestor.get_id().get_value()} {ancestor.name}\n")
