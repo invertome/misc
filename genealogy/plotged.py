@@ -13,40 +13,31 @@ parser.add_argument("--out", help="Output folder for the plots and text files")
 parser.add_argument("--format", help="Output format for the plots and text files (pdf, text, both)", default="both", choices=["pdf", "text", "both"])
 args = parser.parse_args()
 
-# Load GEDCOM file
 try:
-    with ged4py.GedcomFile.from_file(args.ged) as gedcom_file:
-        tree = ged4py.Model.from_gedcom(gedcom_file)
-except Exception as e:
-    print(f"An error occurred while trying to parse the GEDCOM file: {e}")
-    sys.exit(1)
-    
-# Get the individual and their ancestors
-ind = tree.get_individual_by_pointer(args.id)
-if not ind:
-    print(f"Could not find individual with id {args.id} in GEDCOM file.")
-    sys.exit(1)
-ancestors = ind.get_ancestors(gen=args.gen)
-ancestors = ancestors[:100] # limiting the number of generations to 100
+    with ged4py.Gedcom(args.ged) as gedcom_file:
+        tree = gedcom_file.get_tree()
 
-# Create plot
-fig, ax = plt.subplots()
-ax.set_title("Family Tree of {}".format(ind.name))
+    # Create plot
+    fig, ax = plt.subplots()
+    ax.set_title("Family Tree of {}".format(args.id))
 
-for ancestor in ancestors:
-    if args.clean:
-        ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
-    else:
-        # Get birth date, birth place, marriage date, marriage place, death date, death place
-        birth_date = ancestor.get_birth_date().get_value() if ancestor.get_birth_date() else 'N/A'
-        birth_place = ancestor.get_birth_place().get_value() if ancestor.get_birth_place() else 'N/A'
-        marriage_date = ancestor.get_marriage_date().get_value() if ancestor.get_marriage_date() else 'N/A'
-        marriage_place = ancestor.get_marriage_place().get_value() if ancestor.get_marriage_place() else 'N/A'
-        death_date = ancestor.get_death_date().get_value() if ancestor.get_death_date() else 'N/A'
-        death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
-        ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place)
+    # Get ancestors for the individual
+    ind = tree.get_individual(args.id)
+    ancestors = ind.get_ancestors(gen=args.gen)
+    ancestors = ancestors[:100] # limiting the number of generations to 100
 
-    # Handle repeated ancestors due to endogamy
+    for ancestor in ancestors:
+        if args.clean:
+            ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name)
+        else:
+            # Get birth date, birth place, marriage date, marriage place, death date, death place
+            birth_date = ancestor.get_birth_date().get_value() if ancestor.get_birth_date() else 'N/A'
+            birth_place = ancestor.get_birth_place().get_value() if ancestor.get_birth_place() else 'N/A'
+            marriage_date = ancestor.get_marriage_date().get_value() if ancestor.get_marriage_date() else 'N/A'
+            marriage_place = ancestor.get_marriage_place().get_value() if ancestor.get_marriage_place() else 'N/A'
+            death_date = ancestor.get_death_date().get_value() if ancestor.get_death_date() else 'N/A'
+            death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
+            ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place)
 repeated_ancestors = set()
 for ancestor in ancestors:
     if ancestor.get_id().get_value() in repeated_ancestors:
@@ -65,31 +56,25 @@ if args.out:
 else:
     if args.format in ("pdf", "both"):
         plt.show()
-
 # create a text file based family tree
 if args.format in ("text", "both"):
     with open(args.out + "/family_tree.txt", "w") as f:
         for ancestor in ancestors:
-            birth_date = ancestor.get_birth_date().get_value() if ancestor.get_birth_date() else 'N/A'
-            birth_place = ancestor.get_birth_place().get_value() if ancestor.get_birth_place() else 'N/A'
-            marriage_date = ancestor.get_marriage_date().get_value() if ancestor.get_marriage_date() else 'N/A'
-            marriage_place = ancestor.get_marriage_place().get_value() if ancestor.get_marriage_place() else 'N/A'
-            death_date = ancestor.get_death_date().get_value() if ancestor.get_death_date() else 'N/A'
-            death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
-            f.write(ancestor.get_name().get_value() + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place + "\n")
+            f.write(ancestor.get_name().get_value() + ": " + ancestor.get_birth_date().get_value() + ' ' + ancestor.get_birth_place().get_value() + "\n")
 
 # create more detailed version of the text file
 if args.format in ("text", "both"):
     with open(args.out + "/family_tree_detailed.txt", "w") as f:
         for ancestor in ancestors:
-            birth_date = ancestor.get_birth_date().get_value() if ancestor.get_birth_date() else 'N/A'
-            birth_place = ancestor.get_birth_place().get_value() if ancestor.get_birth_place() else 'N/A'
-            marriage_date = ancestor.get_marriage_date().get_value() if ancestor.get_marriage_date() else 'N/A'
-            marriage_place = ancestor.get_marriage_place().get_value() if ancestor.get_marriage_place() else 'N/A'
-            death_date = ancestor.get_death_date().get_value() if ancestor.get_death_date() else 'N/A'
-            death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
             f.write(ancestor.get_name().get_value() + '\n')
             f.write('Birth: '+ birth_date + ' ' + birth_place + '\n')
             f.write('Marriage: '+ marriage_date + ' ' + marriage_place + '\n')
             f.write('Death: '+ death_date + ' ' + death_place + '\n\n')
+    print(f"Saved detailed family tree text file to {args.out}/family_tree_detailed.txt")
+else:
+    print("Skipping detailed family tree text file output")
+except Exception as e:
+print(f"An error occurred while trying to parse the GEDCOM file: {e}")
+sys.exit(1)
 
+print("Family tree plot and text files generated successfully!")
