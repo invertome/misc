@@ -72,3 +72,5 @@ try:
             for ancestor in ancestors:
                 f.write(ancestor.name + " : " + ancestor.birthdate + " : " + ancestor.birthplace + " : " + ancestor.marriage_date + " : " + ancestor.marriage_place + " : " + ancestor.deathdate + " : " + ancestor.deathplace + "\n")
                 f.write("Generation: " + str(ancestor.gen) + "\n")
+except Exception as e:
+    print(f'An error occurred: {e}')
