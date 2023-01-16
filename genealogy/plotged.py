@@ -1,5 +1,5 @@
 import argparse
-import ged4py
+from ged4py import GedcomFile
 import matplotlib.pyplot as plt
 import os
 
@@ -14,8 +14,8 @@ parser.add_argument("--format", help="Output format for the plots and text files
 args = parser.parse_args()
 
 try:
-    with ged4py.Gedcom(args.ged) as gedcom_file:
-        tree = gedcom_file.get_tree()
+    with GedcomFile.parse(args.ged) as gedcom:
+        tree = gedcom.get_tree()
 
     # Create plot
     fig, ax = plt.subplots()
@@ -23,7 +23,7 @@ try:
 
     # Get ancestors for the individual
     ind = tree.get_individual(args.id)
-    ancestors = ind.get_ancestors(gen=args.gen)
+    ancestors = ind.get_ancestors(max_gen=args.gen)
 
     for ancestor in ancestors:
         if args.clean:
@@ -37,34 +37,30 @@ try:
             death_date = ancestor.get_death_date().get_value() if ancestor.get_death_date() else 'N/A'
             death_place = ancestor.get_death_place().get_value() if ancestor.get_death_place() else 'N/A'
             ax.text(ancestor.x_coord, ancestor.y_coord, ancestor.name + ": " + birth_date + ' ' + birth_place + ' ' + marriage_date + ' ' + marriage_place + ' ' + death_date + ' ' + death_place)
+
     repeated_ancestors = set()
     for ancestor in ancestors:
-        if ancestor.get_id().get_value() in repeated_ancestors:
-            pass # Link ancestor to itself with a faint line, but it's not clear where the coordinates are stored
+        if ancestor.get_id() in repeated_ancestors:
+            # Link ancestor to itself with a faint line
+            ax.annotate("", xy=(ancestor.x_coord, ancestor.y_coord), xytext=(repeated_ancestors[ancestor.get_id()][0], repeated_ancestors[ancestor.get_id()][1]),
+                        arrowprops=dict(facecolor='gray', alpha=0.3))
         else:
-            repeated_ancestors.add(ancestor.get_id().get_value())
+            repeated_ancestors.add(ancestor.get_id())
 
+    # Output the plot to a folder
+    if args.out:
+        if not os.path.exists(args.out):
+            os.mkdir(args.out)
+        if args.format in ("pdf", "both"):
+            plt.savefig(args.out + "/family_tree.pdf")
+    else:
+        if args.format in ("pdf", "both"):
+            plt.show()
+    # create a text file based family tree
+    if args.format in ("text", "both"):
+        with open(args.out + "/family_tree.txt", "w") as f:
+            for ancestor in ancestors:
+                f.write(ancestor.name + '\n')
 except Exception as e:
     print(f'An error occurred: {e}')
-    exit(1)
 
-# Output the plot to a folder
-if args.out:
-    if not os.path.exists(args.out):
-        os.mkdir(args.out)
-    if args.format in ("pdf", "both"):
-        plt.savefig(os.path.join(args.out, "family_tree.pdf"))
-else:
-    if args.format in ("pdf", "both"):
-        plt.show()
-
-# create a text file based family tree
-if args.format in ("text", "both"):
-    if args.out:
-        with open(os.path.join(args.out, "family_tree.txt"), "w") as f:
-            for ancestor in ancestors:
-                f.write(f"{ancestor.get_id().get_value()} {ancestor.name}\n")
-    else:
-        with open("family_tree.txt", "w") as f:
-            for ancestor in ancestors:
-                f.write(f"{ancestor.get_id().get_value()} {ancestor.name}\n")
